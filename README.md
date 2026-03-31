@@ -1,6 +1,3 @@
-I cannot directly generate a downloadable file for you, but you can click the **Copy code** button in the top right corner of the block below. Paste the copied text into your text editor (like VS Code) and save it as `README.md` in the root of your project folder.
-
-````markdown
 # 🤖 ReAct GitHub Agent
 
 > A production-ready AI agent powered by LangGraph, FastMCP, and dual-memory systems to seamlessly interact with, manage, and develop GitHub repositories.
@@ -110,30 +107,10 @@ User Query
   │
   └─→ save_memory(user_id, facts)       # Heuristic extraction → Saves to Mem0
 ```
-
-### Upgrading Short-Term Memory (Production Persistence)
-
-By default, the agent uses an in-memory `MemorySaver`. To persist short-term state across server restarts, update `agent/memory.py`:
-
-**For SQLite (Local File-based):**
-
-```python
-from langgraph.checkpoint.sqlite import SqliteSaver
-short_term_memory = SqliteSaver.from_conn_string("checkpoints.db")
-```
-
-**For Redis (Production/Distributed):**
-
-```python
-from langgraph.checkpoint.redis import RedisSaver
-import os
-
-short_term_memory = RedisSaver.from_conn_string(os.getenv("REDIS_URL"))
-```
-
 -----
 
 ## Frontend UI
+<img width="1907" height="918" alt="image" src="https://github.com/user-attachments/assets/54d57d93-dd38-4592-8e1a-8388bef65354" />
 
 ## Roadmap & Future Improvements
 
@@ -148,6 +125,3 @@ We are continually refining the agent to be more autonomous, accurate, and user-
 ## 📄 License
 
 This project is licensed under the [MIT License](https://www.google.com/search?q=LICENSE).
-
-```
-```
