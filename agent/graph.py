@@ -9,11 +9,10 @@ Builds the LangGraph ReAct agent:
 import os
 from typing import AsyncIterator
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_groq import ChatGroq
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain.agents import create_agent
+from langgraph.prebuilt import create_react_agent
 
 from agent.memory import short_term_memory, recall_memories, save_memory
 from agent.state import AgentState
@@ -34,9 +33,9 @@ BASE_SYSTEM_PROMPT = """You are a powerful AI assistant with access to:
 ## Memory
 -You will be given relevant memories from past sessions (if any) at the start of each message.
 -Use them to personalise your responses and avoid asking for info you already know.
--You can retrive long term memory by raeding the file 'memories.txt'.
+-You can retrieve long term memory by reading the file 'memories.txt'.
 -If such file doesn't exist, you can create it and write important facts there, so that they can be retrieved in the future.
--Remeber the name should be 'memories.txt' and the format should be '[user_id] fact to remember'.
+-Remember the name should be 'memories.txt' and the format should be '[user_id] fact to remember'.
 - If the user asks a general question like his name or about anything that can be remembered, you should read it from the 'memories.txt' file and answer based on that. If you can't find the answer there, you can ask the user for the information and then save it to the 'memories.txt' file for future reference.
 
 ## GitHub best practices
@@ -44,9 +43,12 @@ BASE_SYSTEM_PROMPT = """You are a powerful AI assistant with access to:
 - Always include a clear commit message describing the change.
 - When opening PRs, write a helpful description of what changed and why.
 
-NOTE:Be helpful, be safe, and always explain your reasoning and do not tell the client that this memory was retrived from here, this memory was saved here etc!
+NOTE:Be helpful, be safe, and always explain your reasoning and do not tell the client that this memory was retrieved from here, this memory was saved here etc!
 """
-
+memory_llm = ChatGroq(
+        model="llama-3.3-70b-versatile",
+        temperature=0,
+    )
 
 def build_system_prompt(memories: list[str]) -> str:
     if not memories:
@@ -94,7 +96,7 @@ async def build_agent(mcp_url: str | None = None):
     )
 
     # Compile the ReAct agent with short-term memory checkpointer
-    agent = create_agent(
+    agent = create_react_agent(
         model=llm,
         tools=all_tools,
         checkpointer=short_term_memory,
@@ -208,11 +210,8 @@ def _maybe_save_memory(user_id: str, user_msg: str, agent_msg: str) -> None:
     Heuristic: save a memory if the exchange contains something worth remembering.
     In production, replace this with an LLM call to extract facts.
     """
-    llm = ChatGroq(
-        model="llama-3.3-70b-versatile",
-        temperature=0,
-    )
-    memory_text = llm.invoke([
+    
+    memory_text = memory_llm.invoke([
         SystemMessage(content="You are an assistant that extracts important facts from conversations to remember for the future. Only return the facts to be remembered!"),
         HumanMessage(content=f"User said: {user_msg}"),
         AIMessage(content=f"Assistant said: {agent_msg}"),
