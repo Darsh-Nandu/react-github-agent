@@ -1,127 +1,307 @@
-# 🤖 ReAct GitHub Agent
+<div align="center">
 
-> A production-ready AI agent powered by LangGraph, FastMCP, and dual-memory systems to seamlessly interact with, manage, and develop GitHub repositories.
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1117,50:1a1a2e,100:16213e&height=140&section=header&text=ReAct%20GitHub%20Agent&fontSize=38&fontColor=58a6ff&fontAlignY=65&animation=fadeIn" width="100%"/>
 
-**ReAct GitHub Agent** is an advanced, autonomous AI tool designed for developers. It leverages a LangGraph `Think → Act → Observe` loop to execute complex software engineering tasks directly on your GitHub repositories. Backed by an extensible FastMCP server and a dual-memory system, it learns your preferences and project context over time.
+<br/>
+
+<img src="https://img.shields.io/badge/LangGraph-ReAct_Loop-6366f1?style=for-the-badge&logo=python&logoColor=white"/>
+<img src="https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi&logoColor=white"/>
+<img src="https://img.shields.io/badge/FastMCP-Tool_Server-ff6b35?style=for-the-badge&logo=python&logoColor=white"/>
+<img src="https://img.shields.io/badge/Mem0-Dual_Memory-8b5cf6?style=for-the-badge&logo=brain&logoColor=white"/>
+<img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white"/>
+<img src="https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge"/>
+
+<br/><br/>
+
+### An autonomous AI agent that manages GitHub repositories through a full **Think → Act → Observe** loop —
+### with live streaming, dual memory, and 25+ tools across code execution, web search, and the full GitHub API.
+
+<br/>
+
+[**Quick Start**](#-quick-start) &nbsp;·&nbsp; [**Architecture**](#-architecture) &nbsp;·&nbsp; [**Tools**](#-tools) &nbsp;·&nbsp; [**Memory**](#-memory-system) &nbsp;·&nbsp; [**API**](#-api-reference)
+
+<br/>
+
+</div>
 
 ---
 
-## Features
+## What It Does
 
-- **LangGraph ReAct Loop**: Robust cognitive architecture for autonomous problem solving and tool execution.
-- **FastMCP Server Integration**: Custom tools via SSE, including safe Python execution, local file utilities, and web searching.
-- **Comprehensive GitHub Access**: Read/write files, manage branches, handle commits, review PRs, and triage issues directly through PyGithub.
-- **Dual Memory Architecture**: Seamless context management combining session-based short-term memory (LangGraph) and persistent long-term memory (Mem0).
-- **FastAPI Backend**: High-performance, asynchronous backend with real-time streaming via Server-Sent Events (SSE).
-- **Dark Terminal UI**: A sleek, developer-focused frontend interface.
+You talk to it. It reasons, picks tools, executes them, observes results, and keeps going until the task is done.
+
+```
+You   →  "Review the open PRs in my repo and add a comment summarising the diff on each one"
+
+Agent →  [thinks]  I need to list PRs, then get each diff, then post a comment.
+      →  [tool]    list_pull_requests("Darsh-Nandu/my-repo")
+      →  [tool]    get_pr_diff("Darsh-Nandu/my-repo", 12)
+      →  [tool]    add_issue_comment("Darsh-Nandu/my-repo", 12, "Summary: ...")
+      →  [tool]    get_pr_diff("Darsh-Nandu/my-repo", 13)  ...and so on
+      →  "Done — added summaries to PR #12 and #13."
+```
+
+It remembers your name, your preferred coding style, and your project context — across sessions.
+
+---
+
+## Architecture
+
+```
+                    ┌─────────────────────────────────────────────────┐
+                    │              ReAct GitHub Agent                  │
+                    └─────────────────────────────────────────────────┘
+
+  Browser / API Client
+         │
+         │  HTTP + SSE (streaming)
+         ▼
+  ┌─────────────────┐
+  │  FastAPI :8000  │   /chat  /chat/stream  /memories  /health
+  └────────┬────────┘
+           │
+           ▼
+  ┌──────────────────────────────────────────┐
+  │         LangGraph ReAct Agent            │
+  │                                          │
+  │  ┌──────────────┐   ┌─────────────────┐  │
+  │  │ Short-term   │   │   Long-term     │  │
+  │  │ Memory       │   │   Memory (Mem0) │  │
+  │  │ (MemorySaver │   │ (cross-session) │  │
+  │  │  per-session)│   │                 │  │
+  │  └──────────────┘   └─────────────────┘  │
+  │                                          │
+  │          Think → Act → Observe           │
+  └──────┬───────────────────┬───────────────┘
+         │                   │
+         ▼                   ▼
+  ┌─────────────┐    ┌───────────────────┐
+  │  FastMCP    │    │   GitHub Tools    │
+  │  :8001      │    │   (PyGithub)      │
+  │             │    │                   │
+  │ run_python  │    │  read/write files │
+  │ web_search  │    │  branches, PRs    │
+  │ fetch_url   │    │  issues, commits  │
+  │ lint/format │    │  search, diffs    │
+  └─────────────┘    └───────────────────┘
+```
+
+The **FastMCP server** and **FastAPI backend** run as separate processes — MCP tools execute in isolation, keeping the agent backend clean.
 
 ---
 
 ## Quick Start
 
-### 1. Clone and Install
+### Prerequisites
+- Python 3.10+
+- A [Groq](https://console.groq.com/) API key *(free tier available)*
+- A GitHub [Personal Access Token](https://github.com/settings/tokens) with `repo` + `workflow` scopes
+- *(Optional)* OpenAI API key — enables semantic search in Mem0
+
+### 1. Clone & Install
+
 ```bash
-git clone [https://github.com/yourusername/react-github-agent.git](https://github.com/yourusername/react-github-agent.git)
-cd react-github-agent
+git clone https://github.com/Darsh-Nandu/React-Github-Agent.git
+cd React-Github-Agent
 pip install -r requirements.txt
-````
-
-### 2\. Configure Environment
-
-Copy the example environment file and add your credentials.
-
-```bash
-cp .env.example .env
 ```
 
-Edit `.env` and fill in:
+### 2. Configure Environment
 
-  * `ANTHROPIC_API_KEY`: Your Anthropic API key.
-  * `GITHUB_TOKEN`: A GitHub Personal Access Token (requires `repo` and `workflow` scopes).
-  * `OPENAI_API_KEY`: (Optional) Used to improve Mem0 semantic search embeddings.
+Create a `.env` file in the root:
 
-### 3\. Start the MCP Server
+```env
+# Required
+GROQ_API_KEY=your_groq_api_key
+GITHUB_TOKEN=your_github_personal_access_token
 
-In your first terminal, launch the FastMCP tool server:
+# Optional — enables semantic memory search in Mem0
+OPENAI_API_KEY=your_openai_api_key
+
+# Optional — defaults to http://localhost:8001/sse
+MCP_SERVER_URL=http://localhost:8001/sse
+```
+
+### 3. Start the MCP Tool Server
 
 ```bash
+# Terminal 1
 python mcp_server/server.py
-# → Running on http://localhost:8001
+# → FastMCP running on http://localhost:8001
 ```
 
-### 4\. Start the FastAPI Backend
-
-In your second terminal, launch the main agent API:
+### 4. Start the Agent Backend
 
 ```bash
+# Terminal 2
 python main.py
-# → Running on http://localhost:8000
+# → FastAPI running on http://localhost:8000
 ```
 
-### 5\. Access the UI
+### 5. Open the UI
 
-Navigate to **http://localhost:8000** in your browser to start interacting with the agent.
+Navigate to **[http://localhost:8000](http://localhost:8000)**
 
------
+---
 
-## Architecture
+## UI
 
-The system is decoupled into an intelligent FastAPI backend and a specialized FastMCP tool server, ensuring modularity and secure execution.
+![ReAct GitHub Agent UI](https://github.com/user-attachments/assets/54d57d93-dd38-4592-8e1a-8388bef65354)
 
-```text
-FastAPI (port 8000)
-  └── LangGraph ReAct Agent
-        ├── Short-term memory  (LangGraph MemorySaver, per-session)
-        ├── Long-term memory   (Mem0, cross-session)
-        ├── FastMCP tools      (connected via SSE to port 8001)
-        │     ├── run_python
-        │     ├── format_python_code / lint_python_code
-        │     ├── fetch_url / web_search
-        │     ├── read_local_file / write_local_file
-        │     ├── summarize_text
-        │     ├── parse_json
-        │     └── diff_strings
-        └── GitHub tools       (PyGithub)
-              ├── list_repos / get_file_tree
-              ├── read_github_file / write_github_file
-              ├── create_branch / list_branches / list_commits
-              ├── search_code
-              ├── list_issues / create_issue / add_issue_comment / close_issue
-              └── list_pull_requests / create_pull_request / get_pr_diff
+*Dark terminal-style interface with real-time token streaming and visible tool execution.*
+
+---
+
+## Tools
+
+### 🐙 GitHub Tools — 15 tools via PyGithub
+
+| Tool | Description |
+|:---|:---|
+| `list_repos` | List all repos for the authenticated user |
+| `get_file_tree` | Browse directory structure of any repo |
+| `read_github_file` | Read any file from any branch |
+| `write_github_file` | Create or update a file with a commit |
+| `create_branch` / `list_branches` | Branch management |
+| `list_commits` | View recent commit history on any branch |
+| `search_code` | Search code across repos (GitHub syntax supported) |
+| `list_issues` / `create_issue` | Issue listing and creation |
+| `add_issue_comment` / `close_issue` | Issue interaction |
+| `list_pull_requests` / `create_pull_request` | Full PR lifecycle |
+| `get_pr_diff` | Get the full diff of any pull request |
+
+### ⚙️ MCP Tools — 10 tools via FastMCP
+
+| Tool | Description |
+|:---|:---|
+| `run_python` | Execute Python in an isolated subprocess (timeout-safe) |
+| `format_python_code` | Format code with Black |
+| `lint_python_code` | Lint code with Pylint |
+| `fetch_url` | Fetch and parse any URL as plain text |
+| `web_search` | Search the web via DuckDuckGo (no API key needed) |
+| `read_local_file` / `write_local_file` | Local filesystem access |
+| `summarize_text` | Extractive summarization of long content |
+| `parse_json` | Parse and pretty-print JSON |
+| `diff_strings` | Unified diff between two strings |
+
+---
+
+## Memory System
+
+The agent uses a **two-layer memory architecture** to maintain context within and across sessions.
+
+```
+User Message
+     │
+     ├── 1. recall_memories(user_id, query)
+     │         └── semantic search in Mem0 → injected into system prompt
+     │
+     ├── 2. LangGraph ReAct loop
+     │         └── MemorySaver checkpointer keeps full message
+     │              history for the duration of the session
+     │
+     └── 3. _maybe_save_memory(user_id, exchange)
+               └── LLM extracts key facts → persisted to Mem0
 ```
 
------
+| Layer | Store | Scope | Backend |
+|:---|:---|:---|:---|
+| Short-term | `MemorySaver` | Single session | In-memory (LangGraph) |
+| Long-term | `Mem0` | Cross-session | Vector store (or `memories.txt` fallback) |
 
-## Memory Management
+> **Upgrade path:** swap `MemorySaver` → `SqliteSaver` for short-term persistence across restarts.
 
-### Memory Flow Pipeline
+---
 
-The agent combines contextual awareness with persistent knowledge extraction.
+## API Reference
 
-```text
-User Query
-  │
-  ├─→ recall_memories(user_id, query)   # Semantic search in Mem0
-  ├─→ inject into system prompt         # Provide long-term context
-  ├─→ LangGraph ReAct loop runs         # Agent executes multi-step reasoning
-  │
-  └─→ save_memory(user_id, facts)       # Heuristic extraction → Saves to Mem0
+| Method | Endpoint | Description |
+|:---|:---|:---|
+| `POST` | `/chat` | Single-turn — waits for full response |
+| `POST` | `/chat/stream` | Streaming — SSE token-by-token |
+| `GET` | `/memories` | Fetch all long-term memories for a user |
+| `DELETE` | `/memories` | Wipe all memories for a user |
+| `GET` | `/health` | Health check + agent readiness |
+| `GET` | `/` | Serves the UI |
+
+**Request body for `/chat` and `/chat/stream`:**
+```json
+{
+  "message": "List my repos and find any that have open issues",
+  "session_id": "optional-uuid-for-continuity",
+  "user_id": "default-user"
+}
 ```
------
 
-## Frontend UI
-<img width="1907" height="918" alt="image" src="https://github.com/user-attachments/assets/54d57d93-dd38-4592-8e1a-8388bef65354" />
+---
 
-## Roadmap & Future Improvements
+## Project Structure
 
-We are continually refining the agent to be more autonomous, accurate, and user-friendly. Planned updates include:
+```
+React-Github-Agent/
+│
+├── main.py                    # FastAPI app — routes, lifespan, streaming
+│
+├── agent/
+│   ├── graph.py               # LangGraph ReAct agent + memory loop
+│   ├── memory.py              # MemorySaver (short-term) + Mem0 (long-term)
+│   └── state.py               # AgentState TypedDict
+│
+├── github_tools/
+│   └── github_toolkit.py      # 15 GitHub tools via PyGithub
+│
+├── mcp_server/
+│   └── server.py              # FastMCP server — 10 utility tools
+│
+├── static/
+│   └── index.html             # Dark terminal UI
+│
+└── requirements.txt
+```
 
-  * **System Prompt Optimization:** Dynamic injection of repository-specific coding guidelines, architectural constraints, and refined tool-usage rules to reduce hallucinations and improve direct output quality.
-  * **Memory Enhancements:** Upgrading memory management with automated decay for outdated facts, vector-based deduplication, and smarter heuristic extraction for Mem0 to prevent context bloat.
-  * **UI Output Formatting:** Improving the Dark Terminal UI to support streaming Markdown parsing, syntax-highlighted code blocks with one-click copy, and collapsible tool-execution logs (Think/Act/Observe traces) for a cleaner chat experience.
+---
 
------
+## Roadmap
 
-## 📄 License
+```
+✅ LangGraph ReAct loop with streaming
+✅ 25 tools — GitHub + MCP
+✅ Dual memory (MemorySaver + Mem0)
+✅ FastAPI backend with SSE streaming
+✅ Dark terminal UI
+⬜ SqliteSaver for short-term memory persistence
+⬜ Real auth / per-user sessions (JWT)
+⬜ Streaming Markdown + syntax highlighting in UI
+⬜ Collapsible Think/Act/Observe traces in UI
+⬜ Repo-specific system prompt injection
+⬜ Memory decay + deduplication
+```
 
-This project is licensed under the [MIT License](https://www.google.com/search?q=LICENSE).
+---
+
+## Tech Stack
+
+<div align="center">
+
+| | Tool | Purpose |
+|:---:|:---|:---|
+| 🔗 | [LangGraph](https://github.com/langchain-ai/langgraph) | ReAct agent loop + short-term memory checkpointing |
+| 🦜 | [LangChain](https://github.com/langchain-ai/langchain) | LLM interface, tool binding, message types |
+| ⚡ | [Groq](https://groq.com/) · `llama-3.3-70b-versatile` | Fast LLM inference (free tier available) |
+| 🛠️ | [FastMCP](https://github.com/jlowin/fastmcp) | MCP tool server over SSE |
+| 🐙 | [PyGithub](https://github.com/PyGithub/PyGithub) | GitHub REST API wrapper |
+| 🧠 | [Mem0](https://github.com/mem0ai/mem0) | Long-term cross-session memory |
+| 🚀 | [FastAPI](https://fastapi.tiangolo.com/) | Async backend + SSE streaming |
+| 🛡️ | [Pydantic v2](https://docs.pydantic.dev/) | Request / response validation |
+
+</div>
+
+---
+
+<div align="center">
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:16213e,50:1a1a2e,100:0d1117&height=80&section=footer" width="100%"/>
+
+MIT License &nbsp;·&nbsp; Built by [Darsh Nandu](https://github.com/Darsh-Nandu)
+
+</div>
