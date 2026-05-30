@@ -148,7 +148,7 @@ Navigate to **[http://localhost:8000](http://localhost:8000)**
 
 ![ReAct GitHub Agent UI](https://github.com/user-attachments/assets/54d57d93-dd38-4592-8e1a-8388bef65354)
 
-*Dark terminal-style interface with real-time token streaming and visible tool execution.*
+*Dark terminal-style interface with real-time token streaming and visible tool execution (UI was made in assistance with AI) .*
 
 ---
 
